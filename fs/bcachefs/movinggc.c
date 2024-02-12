@@ -195,9 +195,8 @@ err:
 		ret2;
 	}));
 
-	pr_debug("have: %zu (%zu) saw %zu in flight %zu not movable %zu got %zu (%zu)/%zu buckets ret %i",
-		 buckets_in_flight->nr, buckets_in_flight->sectors,
-		 saw, in_flight, not_movable, buckets->nr, sectors, nr_to_get, ret);
+	trace_copygc_get_buckets(c, buckets_in_flight->nr, nr_to_get, saw,
+				 not_movable, in_flight, buckets->nr, ret);
 
 	return ret < 0 ? ret : 0;
 }
@@ -214,8 +213,11 @@ static int bch2_copygc(struct moving_context *ctxt,
 	};
 	move_buckets buckets = { 0 };
 	struct move_bucket_in_flight *f;
-	u64 sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen);
-	u64 sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved);
+
+	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
+	u64 raced = atomic64_read(&ctxt->stats->sectors_raced);
+	u64 seen = atomic64_read(&ctxt->stats->sectors_seen);
+
 	int ret = 0;
 
 	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight, &buckets);
@@ -256,9 +258,10 @@ err:
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err_msg(c, ret, "from bch2_move_data()");
 
-	sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen) - sectors_seen;
-	sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved) - sectors_moved;
-	trace_and_count(c, copygc, c, buckets.nr, sectors_seen, sectors_moved);
+	moved = atomic64_read(&ctxt->stats->sectors_moved) - moved;
+	seen  = atomic64_read(&ctxt->stats->sectors_seen)  - seen;
+	raced = atomic64_read(&ctxt->stats->sectors_raced) - raced;
+	trace_and_count(c, copygc, c, moved, seen, raced);
 
 	darray_exit(&buckets);
 	return ret;

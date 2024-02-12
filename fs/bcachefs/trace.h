@@ -914,30 +914,30 @@ TRACE_EVENT(evacuate_bucket,
 
 TRACE_EVENT(copygc,
 	TP_PROTO(struct bch_fs *c,
-		 u64 buckets,
-		 u64 sectors_seen,
-		 u64 sectors_moved),
-	TP_ARGS(c, buckets, sectors_seen, sectors_moved),
+		 u64 sectors_moved, u64 sectors_seen,
+		 u64 sectors_raced),
+	TP_ARGS(c,
+		sectors_moved, sectors_seen,
+		sectors_raced),
 
 	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u64,		buckets			)
-		__field(u64,		sectors_seen		)
-		__field(u64,		sectors_moved		)
+		__field(dev_t,		dev		)
+		__field(u64,		sectors_moved	)
+		__field(u64,		sectors_seen	)
+		__field(u64,		sectors_raced	)
 	),
 
 	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->buckets		= buckets;
-		__entry->sectors_seen		= sectors_seen;
-		__entry->sectors_moved		= sectors_moved;
+		__entry->dev		= c->dev;
+		__entry->sectors_moved	= sectors_moved;
+		__entry->sectors_seen	= sectors_seen;
+		__entry->sectors_raced	= sectors_raced;
 	),
 
-	TP_printk("%d,%d buckets %llu sectors seen %llu moved %llu",
+	TP_printk("%d,%d sectors: moved %llu seen %llu raced %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->buckets,
-		  __entry->sectors_seen,
-		  __entry->sectors_moved)
+		  __entry->sectors_moved, __entry->sectors_seen,
+		  __entry->sectors_raced)
 );
 
 TRACE_EVENT(copygc_wait,
@@ -960,6 +960,43 @@ TRACE_EVENT(copygc_wait,
 	TP_printk("%d,%u waiting for %llu sectors until %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->wait_amount, __entry->until)
+);
+
+TRACE_EVENT(copygc_get_buckets,
+	TP_PROTO(struct bch_fs *c, u64 nr_in_flight, u64 nr_to_get,
+		 u64 saw, u64 not_movable, u64 in_flight, u64 nr_buckets,
+		 int ret),
+	TP_ARGS(c, nr_in_flight, nr_to_get, saw, not_movable, in_flight,
+		nr_buckets, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u64,		nr_in_flight		)
+		__field(u64,		nr_to_get		)
+		__field(u64,		saw			)
+		__field(u64,		not_movable		)
+		__field(u64,		in_flight		)
+		__field(u64,		nr_buckets		)
+		__field(int,		ret			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->nr_in_flight	= nr_in_flight;
+		__entry->nr_to_get	= nr_to_get;
+		__entry->saw		= saw;
+		__entry->not_movable	= not_movable;
+		__entry->in_flight	= in_flight;
+		__entry->nr_buckets	= nr_buckets;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev %d,%u buckets_in_flight %llu nr_to_get %llu saw %llu not_movable %llu "
+		  "in_flight %llu move_buckets %llu ret %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->nr_in_flight, __entry->nr_to_get, __entry->saw,
+		  __entry->not_movable, __entry->in_flight, __entry->nr_buckets,
+		  __entry->ret)
 );
 
 /* btree transactions: */
