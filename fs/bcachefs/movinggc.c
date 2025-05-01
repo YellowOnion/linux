@@ -222,6 +222,7 @@ static int bch2_copygc(struct moving_context *ctxt,
 	if (ret)
 		goto err;
 
+	c->copygc_running = true;
 	darray_for_each(buckets, i) {
 		if (kthread_should_stop() || freezing(current))
 			break;
@@ -245,6 +246,8 @@ static int bch2_copygc(struct moving_context *ctxt,
 		*did_work = true;
 	}
 err:
+	c->copygc_running = false;
+	wake_up(&c->copygc_running_wq);
 
 	/* no entries in LRU btree found, or got to end: */
 	if (bch2_err_matches(ret, ENOENT))
@@ -379,11 +382,7 @@ static int bch2_copygc_thread(void *arg)
 
 		c->copygc_wait = 0;
 
-		c->copygc_running = true;
 		ret = bch2_copygc(&ctxt, buckets, &did_work);
-		c->copygc_running = false;
-
-		wake_up(&c->copygc_running_wq);
 
 		if (!wait && !did_work) {
 			u64 min_member_capacity = bch2_min_rw_member_capacity(c);
