@@ -233,17 +233,21 @@ static int bch2_copygc(struct moving_context *ctxt,
 		ret = PTR_ERR_OR_ZERO(f);
 		if (ret == -EEXIST) { /* rare race: copygc_get_buckets returned same bucket more than once */
 			ret = 0;
+			pr_warn_ratelimited("copygc raced!");
 			continue;
 		}
 		if (ret == -ENOMEM) { /* flush IO, continue later */
 			ret = 0;
+			pr_warn_ratelimited("copygc ENOMEM!");
 			break;
 		}
 
 		ret = bch2_evacuate_bucket(ctxt, f, f->bucket.k.bucket,
 					     f->bucket.k.gen, data_opts);
-		if (ret)
+		if (ret) {
+			pr_warn_ratelimited("copygc evac errr!");
 			goto err;
+		}
 
 		*did_work = true;
 	}
