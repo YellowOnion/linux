@@ -391,7 +391,7 @@ static int bch2_copygc_thread(void *arg)
 
 		ret = bch2_copygc(&ctxt, buckets, &did_work);
 
-		if (!wait && !did_work) {
+		if (!ret && !wait && !did_work) {
 			u64 min_member_capacity = bch2_min_rw_member_capacity(c);
 
 			if (min_member_capacity == U64_MAX)
